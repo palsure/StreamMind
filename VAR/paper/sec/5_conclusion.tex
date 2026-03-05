@@ -1,0 +1,18 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+\ours shows that three simple ideas, importance-scored keyframe memory, temporal query routing, and a two-stage perception-synthesis pipeline, are enough to bring video Q\&A into the streaming regime. None of the individual components is exotic. Their value comes from how they fit together: the SKM captures what matters, the TQR tells the generator where to look, and the BLIP + Flan-T5 pipeline produces coherent answers in under 200\,ms.
+
+The gains over strong baselines are large: 8.3 points on streaming NExT-QA and 14.4 points on LiveQA-Bench. All of this works with frozen pre-trained checkpoints and no end-to-end training.
+
+\paragraph{Limitations.}
+The SKM scores frames by visual similarity in CLIP embedding space. Events that matter semantically but look ordinary on camera, a quiet conversation, a subtle hand gesture, receive low scores and risk eviction.
+The TQR bins questions into three discrete scopes via keyword matching. Requests like ``between minutes 3 and 7'' fall outside its vocabulary. A learned scope classifier would cover more ground.
+The system handles only one camera stream. We do not address multi-view fusion.
+BLIP runs on each frame separately. Sharing computation across frames would cut redundant work.
+
+\paragraph{Ethics.}
+A system that watches live video and answers arbitrary questions invites misuse for surveillance. Operators should deploy \ours only with informed consent from everyone on camera. The demo processes video locally and stores no frames beyond the active session.
+
+\paragraph{Future work.}
+Three directions seem most promising. First, replacing keyword-based routing with a small trained classifier would handle ambiguous questions better. Second, accepting audio alongside video frames would give the system a richer picture of the scene. Third, moving from one camera to many, as in a smart-home or retail setting, would test whether the memory and routing design scales.

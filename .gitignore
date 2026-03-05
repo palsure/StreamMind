@@ -1,0 +1,45 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# Large video files
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.synctex(busy)
+*.pdfsync
+*.run.xml
+*-blx.bib
+
+# IDE
+.vscode/
+.idea/
+
+# Embedded repos
+AIMS/
+
+# Docker
+*.tar
+
+# Temporary/extracted files
+*_extracted.txt

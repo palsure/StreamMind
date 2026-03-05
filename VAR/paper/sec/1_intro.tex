@@ -1,0 +1,44 @@
+\section{Introduction}
+\label{sec:intro}
+
+A security operator watches a live camera feed and asks: \emph{``Did anyone enter the building in the last five minutes?''}
+Someone wearing smart glasses asks: \emph{``What did I put in my bag?''}
+Both questions target a video stream that is still running. Standard video question answering (VideoQA) cannot help here. It assumes the full video is available before inference starts.
+
+Recent models like Video-ChatGPT~\cite{maaz2023videochatgpt}, VideoLLaVA~\cite{lin2023videollava}, and LLaVA-Next-Video~\cite{zhang2024llavanextvideo} score well on standard VideoQA benchmarks, but they share one assumption: the video is finite and fully available at query time.
+Frame sampling, global temporal pooling, and bidirectional attention all depend on that assumption.
+A live stream has no end. Feed one into these models and three problems surface:
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+    \item \textbf{Unbounded memory.} Encoding every frame from a continuous stream means memory and compute grow linearly. Hardware limits will stop the system.
+    \item \textbf{Temporal ambiguity.} \emph{``What is happening?''} targets the present. \emph{``Was there a dog earlier?''} targets the past. Without explicit temporal reasoning, the model mixes these contexts and hallucinates.
+    \item \textbf{Latency.} Re-processing the full stream for each query adds delay. Users expect sub-second responses.
+\end{enumerate}
+
+\textbf{\ours} solves all three. It is a streaming vision-language system for interactive Q\&A on live video, built from three components:
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+    \item \textbf{Semantic Keyframe Memory (SKM).}
+    A fixed bank of $N$ visual entries stores the most informative frames from the stream.
+    The system scores each incoming frame on visual novelty (how different it looks from what is already stored) and temporal coverage (whether it fills a gap in the timeline).
+    High-scoring frames enter memory. Low-scoring stored frames get evicted.
+
+    \item \textbf{Temporal Query Router (TQR).}
+    Not every question needs the same time window. \emph{``What is on the table?''} targets the present frame. \emph{``Did someone leave the room?''} targets the past.
+    The TQR classifies each question into one of three scopes, \emph{instantaneous}, \emph{recent}, or \emph{historical}, and hands only the matching memory slice to the answer stage.
+
+    \item \textbf{Stream-Fused Generator (SFG).}
+    The answer comes from a two-stage pipeline.
+    BLIP~\cite{li2022blip} first runs captioning and visual question answering on each filtered keyframe.
+    Flan-T5~\cite{chung2022flanT5} then reads all those observations together and writes a single response.
+    The SFG sees both past keyframes and the current frame. That lets it handle questions that bridge time, such as \emph{``Is the person still holding the same object as before?''}
+    End-to-end latency stays under 200\,ms on a single GPU.
+\end{enumerate}
+
+For evaluation, we convert NExT-QA~\cite{xiao2021nextqa} and EgoSchema~\cite{mangalam2023egoschema} into streaming protocols: the evaluator issues each question at a specific timestamp, and the model sees no future frames.
+We introduce \emph{LiveQA-Bench}, 500 temporally-diverse questions spread across 50 simulated live streams of 5 to 30 minutes, covering past, present, and transitional events.
+
+\ours reaches 64.7\% on streaming NExT-QA, 8.3 points above the strongest baseline (LLaVA-Next-Video with a 64-frame buffer).
+The gap widens on LiveQA-Bench: 58.2\% for \ours versus under 44\% for every baseline. Historical questions, the ones that require long-range memory, show the biggest difference.
+
+A live web demo lets users ask questions about their own webcam feed in real time.

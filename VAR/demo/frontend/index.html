@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreamMind — Live Video Q&amp;A</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>StreamMind</h1>
+    <p class="subtitle">Adaptive Temporal Memory for Interactive Q&amp;A on Live Video</p>
+  </header>
+
+  <main>
+    <!-- Left: Video + Memory Panel -->
+    <section class="video-panel">
+      <div class="video-container">
+        <video id="videoFeed" autoplay muted playsinline></video>
+        <canvas id="captureCanvas" style="display:none;"></canvas>
+        <div class="video-overlay" id="videoOverlay">
+          <span>Click "Start Webcam" or load a video</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btnWebcam" class="btn btn-primary">Start Webcam</button>
+        <div class="sample-dropdown">
+          <button id="btnSampleVideo" class="btn btn-primary">Sample Videos &#9662;</button>
+          <div class="sample-menu" id="sampleMenu">
+            <button class="sample-item" data-src="/static/samples/cooking.mp4">Cooking Stream</button>
+            <button class="sample-item" data-src="/static/samples/surveillance.mp4">Surveillance Feed</button>
+          </div>
+        </div>
+        <button id="btnLoadVideo" class="btn btn-secondary">Load File…</button>
+        <input type="file" id="videoFileInput" accept="video/*" style="display:none">
+        <button id="btnStop" class="btn btn-secondary" disabled>Stop</button>
+        <button id="btnReset" class="btn btn-secondary">Reset Memory</button>
+        <div class="status-bar">
+          <span id="streamStatus" class="status-dot offline"></span>
+          <span id="statusText">Offline</span>
+          <span class="memory-count">Memory: <strong id="memoryCount">0</strong> / <strong id="memoryCapacity">32</strong></span>
+        </div>
+      </div>
+
+      <div class="memory-strip">
+        <h3>Semantic Keyframe Memory</h3>
+        <div class="filmstrip" id="filmstrip">
+          <div class="filmstrip-empty">No keyframes stored yet</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: Chat Panel -->
+    <section class="chat-panel">
+      <div class="chat-header">
+        <h3>Interactive Q&amp;A</h3>
+        <span class="chat-hint">Ask questions about the live stream</span>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <div class="message system">
+          <p>Welcome to StreamMind. Start the webcam and ask questions about what you see — past, present, or anything in between.</p>
+        </div>
+      </div>
+
+      <form class="chat-input" id="chatForm">
+        <input
+          type="text"
+          id="chatInput"
+          placeholder="Ask about the stream…"
+          autocomplete="off"
+          disabled
+        >
+        <button type="submit" class="btn btn-primary" id="btnSend" disabled>Send</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
