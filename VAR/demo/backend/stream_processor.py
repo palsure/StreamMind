@@ -70,10 +70,11 @@ class StreamProcessor:
         thumb.save(buf, format="JPEG", quality=70)
         return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-    def process_frame(self, frame_data: str) -> dict:
+    def process_frame(self, frame_data: str, timestamp: float | None = None) -> dict:
         """
         Process a single frame from the stream.
         Returns a status dict indicating whether the frame was stored.
+        Pass explicit `timestamp` (video-relative seconds) for offline evaluation.
         """
         self._frame_count += 1
 
@@ -84,7 +85,7 @@ class StreamProcessor:
         embedding = self._encode_frame(image)
         thumbnail = self._make_thumbnail(image)
 
-        stored = self.memory.add_frame(embedding, thumbnail)
+        stored = self.memory.add_frame(embedding, thumbnail, timestamp=timestamp)
 
         return {
             "stored": stored,
@@ -95,9 +96,9 @@ class StreamProcessor:
     def get_memory_state(self) -> list[dict]:
         return self.memory.get_memory_state()
 
-    def get_context_for_query(self, scope: str) -> list[dict]:
+    def get_context_for_query(self, scope: str, current_time: float | None = None) -> list[dict]:
         """Get memory entries for a given temporal scope."""
-        entries = self.memory.get_entries_by_scope(scope)
+        entries = self.memory.get_entries_by_scope(scope, current_time=current_time)
         return [
             {
                 "frame_id": e.frame_id,

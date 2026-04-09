@@ -10,6 +10,7 @@
   <header>
     <h1>StreamMind</h1>
     <p class="subtitle">Adaptive Temporal Memory for Interactive Q&amp;A on Live Video</p>
+    <button id="btnPresentation" class="btn btn-secondary btn-small" title="Toggle presentation mode for workshop demos">Presentation Mode</button>
   </header>
 
   <main>
@@ -30,6 +31,7 @@
           <div class="sample-menu" id="sampleMenu">
             <button class="sample-item" data-src="/static/samples/cooking.mp4">Cooking Stream</button>
             <button class="sample-item" data-src="/static/samples/surveillance.mp4">Surveillance Feed</button>
+            <button class="sample-item" data-src="/static/samples/activity.mp4">Activity Recording</button>
           </div>
         </div>
         <button id="btnLoadVideo" class="btn btn-secondary">Load File…</button>
@@ -62,6 +64,13 @@
         <div class="message system">
           <p>Welcome to StreamMind. Start the webcam and ask questions about what you see — past, present, or anything in between.</p>
         </div>
+      </div>
+
+      <div class="suggested-questions hidden" id="suggestedQuestions">
+        <span class="suggested-label">Try:</span>
+        <button class="suggested-q" data-q="What do you see right now?">Instant</button>
+        <button class="suggested-q" data-q="What just happened?">Recent</button>
+        <button class="suggested-q" data-q="What has happened so far?">Historical</button>
       </div>
 
       <form class="chat-input" id="chatForm">

@@ -14,27 +14,28 @@ Each of these systems expects the full video at inference time. A growing stream
 \paragraph{Streaming perception.}
 Yang \etal~\cite{yang2022real} formalize real-time streaming perception for object detection. Their benchmark penalizes a method whenever it falls behind the input frame rate.
 StreamPETR~\cite{wang2023streampetr} carries this idea to 3D detection by propagating temporal features across frames.
-Two recent efforts come closer to our problem.
-VideoStreaming~\cite{qian2024streaming} proposes a training protocol aware of streaming constraints, and Flash-VStream~\cite{zhang2024flashvstream} adds a memory layer for long video streams.
-Both, though, target passive description or offline evaluation. Neither supports real-time interactive Q\&A, and neither reasons about which time window a user's question refers to. \ours fills that gap with explicit temporal scope classification and scope-aware memory filtering.
+Several recent efforts come closer to our problem.
+VideoStreaming~\cite{qian2024streaming} proposes a training protocol aware of streaming constraints.
+Flash-VStream~\cite{zhang2024flashvstream} adds a memory layer for long video streams.
+VideoLLM-online~\cite{chen2024videollmonline} extends large language models with a streaming decoding mechanism so the model can answer while the video is still playing.
+Dispider~\cite{he2024dispider} disentangles perception, decision, and reaction into parallel modules, enabling active real-time interaction with video feeds.
+Despite this progress, none of these methods explicitly reason about which temporal window a user's question refers to. \ours fills that gap with temporal scope classification and scope-aware memory filtering, achieving stronger results on both established and new streaming benchmarks.
 
 \paragraph{Video question answering.}
 NExT-QA~\cite{xiao2021nextqa} tests causal and temporal reasoning on short clips.
 STAR~\cite{wu2021star} probes situated reasoning with compositional questions, and MVBench~\cite{li2024mvbench} covers a broad range of video understanding tasks.
-EgoSchema~\cite{mangalam2023egoschema} pushes the time horizon to minutes-long egocentric clips from Ego4D.
+EgoSchema~\cite{mangalam2023egoschema} pushes the time horizon to minutes-long egocentric clips from Ego4D~\cite{grauman2022ego4d}, a large-scale egocentric video dataset spanning thousands of hours of daily-life activities.
 MovieChat~\cite{song2024moviechat} tackles long videos by merging frame features into a fixed-size buffer.
-One trait unites these benchmarks: the model gets the entire video before it answers. No existing benchmark tests a model that must answer mid-stream, with the future still unseen. LiveQA-Bench, introduced in this paper, fills that gap by requiring causal-only access and temporally-grounded answers on simulated live streams.
+OVO-Bench~\cite{li2025ovobench} is the closest antecedent: it evaluates Video-LLMs on online video understanding with questions that must be answered causally, without seeing future frames.
+We evaluate on OVO-Bench alongside NExT-QA and EgoSchema to cover a wide spectrum of temporal reasoning tasks.
+LiveQA-Bench, introduced in this paper, complements OVO-Bench by focusing on interactive, scope-labeled questions over long simulated live streams.
 
-\paragraph{Two-stage vision-language pipelines.}
-Separating perception from language generation has practical benefits. Each stage uses a frozen pre-trained model, so the pipeline needs no joint training.
-BLIP~\cite{li2022blip} and BLIP-2~\cite{li2023blip2} follow this pattern. A vision model produces captions or embeddings in stage one, and a language model reasons over them in stage two.
-BLIP-2 pairs a frozen image encoder with Flan-T5~\cite{chung2022flanT5}, an instruction-tuned model covering 1,836 tasks, to answer visual questions without any task-specific training.
-Our SFG borrows the same two-stage idea. BLIP extracts per-frame observations, and Flan-T5 fuses them into one coherent answer.
-
-\paragraph{Temporal memory for sequence models.}
-How to maintain a fixed-size memory over a potentially infinite input is an old question. Recurrent Memory Transformers~\cite{bulatov2022recurrent} keep a set of memory tokens that persist across segments and carry context forward. Memorizing Transformers~\cite{wu2022memorizing} take a different path: a non-differentiable $k$-nearest-neighbor index over a large external bank.
-In the video domain, MovieChat~\cite{song2024moviechat} merges frame features into a buffer, and Ma \etal~\cite{ma2023livelylivechat} compress tokens for long conversations.
-\ours departs from these designs in two ways. First, the SKM ranks stored frames by a visual-semantic importance score, not by recency alone. A FIFO buffer drops early events once the window moves forward. Our scoring keeps rare but informative frames. Second, a temporal router sits on top of memory and, at query time, selects only the time slice the question refers to.
+\paragraph{Two-stage pipelines and temporal memory.}
+Separating perception from language generation lets each stage use a frozen model, removing the need for joint training.
+BLIP-2~\cite{li2023blip2} pairs a frozen image encoder with Flan-T5~\cite{chung2022flanT5} to answer visual questions without task-specific training; our SFG follows the same two-stage idea at the frame level.
+For temporal memory, Recurrent Memory Transformers~\cite{bulatov2022recurrent} persist memory tokens across segments, while Memorizing Transformers~\cite{wu2022memorizing} use a $k$-NN index over an external bank.
+In the video domain, MovieChat~\cite{song2024moviechat} merges frame features into a buffer and Ma \etal~\cite{ma2023livelylivechat} compress tokens for long conversations.
+\ours departs from these designs by ranking stored frames with a visual-semantic importance score (not recency alone) and adding a temporal router that selects only the time slice the question refers to.
 
 \begin{figure*}[!t]
   \centering
@@ -85,26 +86,3 @@ In the video domain, MovieChat~\cite{song2024moviechat} merges frame features in
   \label{fig:architecture}
 \end{figure*}
 
-\begin{figure*}[!t]
-  \centering
-  \begin{tikzpicture}[
-    node distance=0.6cm and 1.8cm,
-    box/.style={draw, rounded corners=4pt, minimum height=0.9cm, minimum width=2.2cm, align=center, font=\small},
-    arr/.style={-{Stealth[length=5pt]}, thick},
-    lbl/.style={font=\scriptsize, midway, fill=white, inner sep=1pt, yshift=3pt},
-    iolbl/.style={font=\small\itshape},
-  ]
-    \node[iolbl] (qin) {$q$};
-    \node[box, right=1.6cm of qin, fill=orange!10] (qenc) {Keyword\\Matcher};
-    \node[box, right=2.0cm of qenc, fill=orange!10] (scope) {Scope\\Selector};
-    \node[box, right=2.0cm of scope, fill=orange!10] (filter) {Memory\\Filter};
-    \node[iolbl, right=1.6cm of filter] (fout) {$\mathcal{F}$};
-
-    \draw[arr] (qin) -- (qenc);
-    \draw[arr] (qenc) -- (scope) node[lbl, above] {per-scope scores};
-    \draw[arr] (scope) -- (filter) node[lbl, above] {scope $c$};
-    \draw[arr] (filter) -- (fout);
-  \end{tikzpicture}
-  \caption{\textbf{TQR pipeline.}}
-  \label{fig:tqr}
-\end{figure*}

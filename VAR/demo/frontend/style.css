@@ -241,7 +241,7 @@ main {
   max-width: 95%;
   padding: 12px 16px;
   border-radius: var(--radius);
-  font-size: 2rem;
+  font-size: 0.9rem;
   line-height: 1.5;
 }
 
@@ -250,7 +250,7 @@ main {
   color: var(--text-secondary);
   align-self: center;
   text-align: center;
-  font-size: 1.25rem;
+  font-size: 0.85rem;
 }
 
 .message.user {
@@ -271,7 +271,7 @@ main {
   display: flex;
   gap: 10px;
   margin-top: 6px;
-  font-size: 1.25rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
 }
 
@@ -428,6 +428,124 @@ main {
 
 .sample-item:hover {
   background: var(--border);
+}
+
+/* ---- Suggested Questions ---- */
+
+.suggested-questions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.suggested-questions.hidden {
+  display: none;
+}
+
+.suggested-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.suggested-q {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.suggested-q:hover {
+  border-color: var(--accent);
+  background: var(--bg-tertiary);
+}
+
+/* ---- Presentation Mode Header Button ---- */
+
+.btn-small {
+  padding: 4px 12px;
+  font-size: 0.7rem;
+  position: absolute;
+  right: 24px;
+  top: 20px;
+}
+
+header {
+  position: relative;
+}
+
+/* ---- Presentation Mode ---- */
+
+body.presentation-mode .message {
+  font-size: 1.15rem;
+}
+
+body.presentation-mode .message.system {
+  font-size: 1.05rem;
+}
+
+body.presentation-mode .message .meta {
+  font-size: 0.85rem;
+}
+
+body.presentation-mode header h1 {
+  font-size: 2.2rem;
+}
+
+body.presentation-mode .subtitle {
+  font-size: 1.05rem;
+}
+
+body.presentation-mode .chat-input input {
+  font-size: 1.1rem;
+  padding: 14px 18px;
+}
+
+body.presentation-mode .btn {
+  font-size: 0.95rem;
+  padding: 10px 20px;
+}
+
+body.presentation-mode .chat-header h3 {
+  font-size: 1.4rem;
+}
+
+body.presentation-mode .chat-hint {
+  font-size: 1.0rem;
+}
+
+body.presentation-mode .memory-strip h3 {
+  font-size: 0.95rem;
+}
+
+body.presentation-mode .keyframe {
+  width: 100px;
+  height: 75px;
+}
+
+body.presentation-mode .keyframe .kf-score {
+  font-size: 0.75rem;
+}
+
+body.presentation-mode .scope-tag {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+}
+
+body.presentation-mode .suggested-q {
+  font-size: 0.85rem;
+  padding: 6px 14px;
+}
+
+body.presentation-mode .suggested-label {
+  font-size: 0.85rem;
 }
 
 /* ---- Responsive ---- */

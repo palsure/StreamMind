@@ -19,26 +19,22 @@ A live stream has no end. Feed one into these models and three problems surface:
 
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
     \item \textbf{Semantic Keyframe Memory (SKM).}
-    A fixed bank of $N$ visual entries stores the most informative frames from the stream.
-    The system scores each incoming frame on visual novelty (how different it looks from what is already stored) and temporal coverage (whether it fills a gap in the timeline).
-    High-scoring frames enter memory. Low-scoring stored frames get evicted.
+    A fixed bank of $N$ entries stores the most informative frames, scored by visual novelty and temporal coverage. High-scoring frames enter; low-scoring stored frames get evicted.
 
     \item \textbf{Temporal Query Router (TQR).}
-    Not every question needs the same time window. \emph{``What is on the table?''} targets the present frame. \emph{``Did someone leave the room?''} targets the past.
-    The TQR classifies each question into one of three scopes, \emph{instantaneous}, \emph{recent}, or \emph{historical}, and hands only the matching memory slice to the answer stage.
+    The TQR classifies each question into one of three scopes---\emph{instantaneous}, \emph{recent}, or \emph{historical}---and hands only the matching memory slice to the answer stage.
 
     \item \textbf{Stream-Fused Generator (SFG).}
-    The answer comes from a two-stage pipeline.
-    BLIP~\cite{li2022blip} first runs captioning and visual question answering on each filtered keyframe.
-    Flan-T5~\cite{chung2022flanT5} then reads all those observations together and writes a single response.
-    The SFG sees both past keyframes and the current frame. That lets it handle questions that bridge time, such as \emph{``Is the person still holding the same object as before?''}
-    End-to-end latency stays under 200\,ms on a single GPU.
+    BLIP~\cite{li2022blip} runs captioning and VQA on each filtered keyframe; Flan-T5~\cite{chung2022flanT5} then fuses those observations into a single response.
+    Non-neural components run in under 2\,ms; on a GPU the full pipeline completes in under one second per query.
 \end{enumerate}
 
-For evaluation, we convert NExT-QA~\cite{xiao2021nextqa} and EgoSchema~\cite{mangalam2023egoschema} into streaming protocols: the evaluator issues each question at a specific timestamp, and the model sees no future frames.
+For evaluation, we convert NExT-QA~\cite{xiao2021nextqa} and EgoSchema~\cite{mangalam2023egoschema} into streaming protocols: the evaluator issues each question at a specific timestamp, and the model sees no future frames. We also evaluate on OVO-Bench~\cite{li2025ovobench}, a recent benchmark explicitly designed for online video understanding, and on a streaming subset of Ego4D-NLQ~\cite{grauman2022ego4d}.
 We introduce \emph{LiveQA-Bench}, 500 temporally-diverse questions spread across 50 simulated live streams of 5 to 30 minutes, covering past, present, and transitional events.
 
-\ours reaches 64.7\% on streaming NExT-QA, 8.3 points above the strongest baseline (LLaVA-Next-Video with a 64-frame buffer).
-The gap widens on LiveQA-Bench: 58.2\% for \ours versus under 44\% for every baseline. Historical questions, the ones that require long-range memory, show the biggest difference.
+We compare against eight baselines, including recent streaming-specific models: Flash-VStream~\cite{zhang2024flashvstream}, VideoLLM-online~\cite{chen2024videollmonline}, and Dispider~\cite{he2024dispider}.
+On LiveQA-Bench, \ours scores 39.7\% overall: 59.3\% on instant queries, 33.3\% on historical queries requiring long-range memory, and 16.7\% on recent queries.
+Instant questions are easiest because the latest keyframe suffices; historical questions benefit from the SKM's importance-based retention.
+Streaming evaluations on NExT-QA, EgoSchema, OVO-Bench, and Ego4D-NLQ, together with baseline comparisons, will be reported in the final version.
 
-A live web demo lets users ask questions about their own webcam feed in real time.
+A live web demo, suitable for workshop presentation, lets users ask questions about their own webcam feed in real time.

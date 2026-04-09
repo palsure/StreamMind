@@ -65,6 +65,15 @@ This downloads two sample clips that match the qualitative examples in the paper
 
 Navigate to `http://localhost:8000` in your browser. Click **Start Webcam** for live input, or use the **Sample Videos** dropdown to load one of the pre-downloaded clips. Then type questions in the chat panel.
 
+## Workshop Presentation Mode
+
+Click the **Presentation Mode** button in the header to activate a projector-friendly view with:
+- Enlarged text and UI elements for visibility from a distance
+- Suggested one-click questions that step through all three temporal scopes (Instant, Recent, Historical)
+- On-screen scope tags, frame counts, and latency indicators visible to the audience
+
+This mode is ideal for live demos at conferences and workshops.
+
 ## Example Questions
 
 | Question | Expected Scope |

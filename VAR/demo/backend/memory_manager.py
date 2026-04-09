@@ -67,10 +67,11 @@ class MemoryManager:
                 + (1.0 - self.alpha) * min(min_gap / self.t_max, 1.0)
             )
 
-    def add_frame(self, embedding: np.ndarray, frame_base64: str) -> bool:
+    def add_frame(self, embedding: np.ndarray, frame_base64: str, timestamp: float | None = None) -> bool:
         """Add a frame to memory. Returns True if it was stored."""
         self._frame_counter += 1
-        timestamp = time.time()
+        if timestamp is None:
+            timestamp = time.time()
         importance = self._compute_importance(embedding, timestamp)
 
         if len(self.entries) < self.capacity:

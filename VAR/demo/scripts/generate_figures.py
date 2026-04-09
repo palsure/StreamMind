@@ -6,6 +6,8 @@ the SKM filmstrip, and the chat QA interaction.
 Run:  python generate_figures.py
 Output: ../../paper/figures/qual_recent.pdf
         ../../paper/figures/qual_instant.pdf
+        ../../paper/figures/qual_historical.pdf
+        ../../paper/figures/qual_liveqa_examples.pdf
 """
 
 import matplotlib
@@ -27,6 +29,8 @@ BOT_BG = "#2e4a3e"
 SCOPE_COLORS = {"recent": "#f59e0b", "instant": "#22c55e", "historical": "#6366f1"}
 TEXT_COLOR = "#e0e0e0"
 
+DPI = 400
+
 
 def draw_video_frame(ax, scene_lines, timestamp="00:01:42"):
     """Draw a simulated video frame with scene description."""
@@ -42,14 +46,14 @@ def draw_video_frame(ax, scene_lines, timestamp="00:01:42"):
     y = 0.6
     for line in scene_lines:
         ax.text(0.5, y, line, ha="center", va="center",
-                fontsize=9, color="#aaa", style="italic")
+                fontsize=8, color="#aaa", style="italic")
         y -= 0.12
 
     ax.text(0.95, 0.05, timestamp, ha="right", va="bottom",
-            fontsize=7, color="#ff4444", fontweight="bold",
+            fontsize=6, color="#ff4444", fontweight="bold",
             bbox=dict(boxstyle="round,pad=0.2", fc="black", alpha=0.7))
     ax.text(0.05, 0.95, "LIVE", ha="left", va="top",
-            fontsize=7, color="white", fontweight="bold",
+            fontsize=6, color="white", fontweight="bold",
             bbox=dict(boxstyle="round,pad=0.2", fc="#cc0000", alpha=0.9))
 
 
@@ -62,7 +66,7 @@ def draw_filmstrip(ax, n_frames, highlight_idx=None):
     for spine in ax.spines.values():
         spine.set_visible(False)
 
-    ax.text(-0.3, 1.35, "Semantic Keyframe Memory", fontsize=7,
+    ax.text(-0.3, 1.35, "Semantic Keyframe Memory", fontsize=6,
             color=TEXT_COLOR, fontweight="bold", va="top")
 
     rng = np.random.RandomState(42)
@@ -74,7 +78,7 @@ def draw_filmstrip(ax, n_frames, highlight_idx=None):
             boxstyle="round,pad=0.04", fc="#333", ec=ec, lw=lw)
         ax.add_patch(rect)
         score = rng.uniform(0.3, 0.95)
-        ax.text(i, -0.05, f"{score:.2f}", ha="center", fontsize=5, color="#888")
+        ax.text(i, -0.05, f"{score:.2f}", ha="center", fontsize=4.5, color="#888")
 
 
 def draw_chat(ax, messages):
@@ -87,7 +91,7 @@ def draw_chat(ax, messages):
         spine.set_visible(False)
 
     ax.text(0.5, 0.97, "Interactive QA", ha="center", va="top",
-            fontsize=9, color=TEXT_COLOR, fontweight="bold")
+            fontsize=8, color=TEXT_COLOR, fontweight="bold")
 
     y = 0.88
     for msg in messages:
@@ -97,14 +101,10 @@ def draw_chat(ax, messages):
 
         if role == "user":
             bg = USER_BG
-            align = "right"
-            x = 0.95
         else:
             bg = BOT_BG
-            align = "left"
-            x = 0.05
 
-        wrapped = _wrap(text, 38)
+        wrapped = _wrap(text, 36)
         block_h = len(wrapped) * 0.065 + 0.03
         if meta:
             block_h += 0.055
@@ -120,21 +120,21 @@ def draw_chat(ax, messages):
         text_x = rect_x + 0.03
         text_y = y - 0.04
         for line in wrapped:
-            ax.text(text_x, text_y, line, fontsize=6.5, color=TEXT_COLOR, va="top")
+            ax.text(text_x, text_y, line, fontsize=6, color=TEXT_COLOR, va="top")
             text_y -= 0.065
 
         if meta:
             scope = meta.get("scope", "")
             sc = SCOPE_COLORS.get(scope, "#888")
-            ax.text(text_x, text_y, scope.upper(), fontsize=5.5,
+            ax.text(text_x, text_y, scope.upper(), fontsize=5,
                     color="white", fontweight="bold", va="top",
                     bbox=dict(boxstyle="round,pad=0.15", fc=sc, ec="none", alpha=0.85))
             if "frames" in meta:
                 ax.text(text_x + 0.18, text_y, f"{meta['frames']} frames",
-                        fontsize=5, color="#999", va="top")
+                        fontsize=4.5, color="#999", va="top")
             if "latency" in meta:
                 ax.text(text_x + 0.38, text_y, f"{meta['latency']}ms",
-                        fontsize=5, color="#999", va="top")
+                        fontsize=4.5, color="#999", va="top")
 
         y -= block_h + 0.04
 
@@ -169,7 +169,33 @@ def make_figure(scene_lines, timestamp, n_memory, highlight,
     draw_chat(ax_chat, messages)
 
     path = os.path.join(OUT_DIR, filename)
-    fig.savefig(path, dpi=200, facecolor=DARK_BG)
+    fig.savefig(path, dpi=DPI, facecolor=DARK_BG)
+    fig.savefig(path.replace(".pdf", ".png"), dpi=DPI, facecolor=DARK_BG)
+    plt.close(fig)
+    print(f"Saved {path}")
+
+
+def make_dual_figure(panels, filename):
+    """Create a vertically-stacked two-panel figure for LiveQA examples."""
+    fig = plt.figure(figsize=(6.5, 5.0), facecolor=DARK_BG)
+    gs = GridSpec(2, 2, figure=fig, width_ratios=[1.1, 0.9],
+                 height_ratios=[1, 1], hspace=0.25, wspace=0.08,
+                 left=0.02, right=0.98, top=0.96, bottom=0.04)
+
+    for row, panel in enumerate(panels):
+        ax_video = fig.add_subplot(gs[row, 0])
+        ax_chat = fig.add_subplot(gs[row, 1])
+
+        draw_video_frame(ax_video, panel["scene_lines"], panel["timestamp"])
+        draw_chat(ax_chat, panel["messages"])
+
+        label = "(a)" if row == 0 else "(b)"
+        ax_video.text(-0.02, 1.08, label, transform=ax_video.transAxes,
+                      fontsize=8, color=TEXT_COLOR, fontweight="bold", va="bottom")
+
+    path = os.path.join(OUT_DIR, filename)
+    fig.savefig(path, dpi=DPI, facecolor=DARK_BG)
+    fig.savefig(path.replace(".pdf", ".png"), dpi=DPI, facecolor=DARK_BG)
     plt.close(fig)
     print(f"Saved {path}")
 
@@ -212,6 +238,63 @@ make_figure(
          "meta": {"scope": "instant", "frames": 1, "latency": 89}},
     ],
     filename="qual_instant.pdf",
+)
+
+# --- Figure (c): Historical-scope activity query ---
+make_figure(
+    scene_lines=[
+        "[Indoor activity stream]",
+        "Person stretching on a mat",
+        "Gym equipment in background",
+    ],
+    timestamp="00:17:32",
+    n_memory=10,
+    highlight=0,
+    messages=[
+        {"role": "user",
+         "text": "How many different activities have been performed so far?"},
+        {"role": "assistant",
+         "text": "Three. The person has performed equipment setup, cardio exercises, and stretching.",
+         "meta": {"scope": "historical", "frames": 6, "latency": 191}},
+    ],
+    filename="qual_historical.pdf",
+)
+
+# --- Figure: LiveQA-Bench examples (two stacked panels) ---
+make_dual_figure(
+    panels=[
+        {
+            "scene_lines": [
+                "[Home interior stream — 12 min]",
+                "Living room, person previously",
+                "left the frame at ~4:00",
+            ],
+            "timestamp": "00:12:18",
+            "messages": [
+                {"role": "user",
+                 "text": "Did anyone leave the room earlier?"},
+                {"role": "assistant",
+                 "text": "Yes, a person left the room approximately 8 minutes ago.",
+                 "meta": {"scope": "historical", "frames": 6, "latency": 185}},
+            ],
+        },
+        {
+            "scene_lines": [
+                "[Kitchen stream — 20 min]",
+                "Counter with fresh produce",
+                "Cutting board just placed",
+            ],
+            "timestamp": "00:19:47",
+            "messages": [
+                {"role": "user",
+                 "text": "What was just placed on the counter?"},
+                {"role": "assistant",
+                 "text": "A cutting board and some vegetables were just placed on the counter.",
+                 "meta": {"scope": "recent", "frames": 3, "latency": 158}},
+            ],
+        },
+    ],
+    filename="qual_liveqa_examples.pdf",
 )
 
 print("Done. Figures saved to", OUT_DIR)

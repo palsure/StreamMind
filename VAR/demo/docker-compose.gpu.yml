@@ -1,0 +1,22 @@
+services:
+  streammind:
+    container_name: streammind-gpu
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - MEMORY_CAPACITY=64
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - model-cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  model-cache:

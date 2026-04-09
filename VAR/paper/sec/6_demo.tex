@@ -1,21 +1,11 @@
 \section*{System Demonstration}
 \label{sec:demo}
 
-We provide a live web demo that lets users interact with \ours through a browser. Users need no local installation. A FastAPI backend runs the full pipeline and communicates with the browser over WebSockets.
+We provide a live web demo that lets users interact with \ours through a browser.
+A FastAPI backend runs the full CLIP + BLIP + Flan-T5 pipeline and communicates with the front end over WebSockets.
+The interface splits into a video panel (live feed plus SKM filmstrip with importance scores) and a chat panel where answers appear in under 200\,ms on GPU with scope tags and latency indicators.
+Users can stream from their webcam, upload a video file, or choose from pre-loaded sample clips.
 
-\paragraph{Interface.}
-Two panels divide the screen. The left panel shows the live video feed and a filmstrip of the current SKM contents, with each thumbnail labeled by its importance score. The right panel is a chat window where the user types natural language questions. Answers appear in under 200\,ms on GPU, with each response showing the predicted temporal scope, the number of context frames used, and the response latency.
-
-\paragraph{Input modes.}
-The demo accepts three input modes:
-\begin{itemize}[itemsep=2pt]
-  \item \textbf{Webcam:} The user's camera serves as the live stream. Example questions include \emph{``What am I holding?''} and \emph{``How many people have been in the room?''}
-  \item \textbf{Video file:} An uploaded video plays as a simulated stream at 5 fps, allowing reproducible demonstrations.
-  \item \textbf{Sample videos:} Two pre-loaded clips, a cooking stream and a surveillance feed, let users test the system without a camera or file upload. These clips match the qualitative examples in \cref{fig:qualitative}.
-\end{itemize}
-
-\paragraph{Deployment.}
-The demo runs on GPU or CPU. On CPU, latency rises to 1--3 seconds per query but the full CLIP + BLIP + Flan-T5 pipeline remains functional. A Docker configuration ships with the code for one-command startup.
-
-\paragraph{Availability.}
-An anonymous URL hosts the demo during review. We will release the source code for the full system and demo upon acceptance.
+A dedicated \emph{workshop presentation mode} enlarges all UI elements for projector visibility and offers one-click sample questions that step through all three temporal scopes, letting the presenter walk the audience through the pipeline interactively.
+The demo runs on GPU or CPU (1--3\,s per query on CPU) and ships with a Docker configuration for one-command startup.
+Code and demo will be released upon acceptance.

@@ -293,9 +293,26 @@ function handleSubmit(e) {
   }
 }
 
+// ---- Presentation mode ----
+
+const btnPresentation = document.getElementById("btnPresentation");
+const suggestedQuestions = document.getElementById("suggestedQuestions");
+
+function togglePresentationMode() {
+  document.body.classList.toggle("presentation-mode");
+  const active = document.body.classList.contains("presentation-mode");
+  btnPresentation.textContent = active ? "Exit Presentation" : "Presentation Mode";
+  if (active) {
+    suggestedQuestions.classList.remove("hidden");
+  } else {
+    suggestedQuestions.classList.add("hidden");
+  }
+}
+
 // ---- Event listeners ----
 
 btnWebcam.addEventListener("click", startWebcam);
+btnPresentation.addEventListener("click", togglePresentationMode);
 
 const sampleMenu = document.getElementById("sampleMenu");
 btnSampleVideo.addEventListener("click", () => {
@@ -311,6 +328,15 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest(".sample-dropdown")) {
     sampleMenu.classList.remove("open");
   }
+});
+
+document.querySelectorAll(".suggested-q").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (chatWs && chatWs.readyState === WebSocket.OPEN) {
+      chatInput.value = btn.dataset.q;
+      chatForm.dispatchEvent(new Event("submit"));
+    }
+  });
 });
 
 btnLoadVideo.addEventListener("click", () => videoFileInput.click());

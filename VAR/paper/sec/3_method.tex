@@ -48,7 +48,7 @@ Each memory entry stores its original timestamp. The TQR uses these timestamps t
 \label{sec:tqr}
 
 When a question $q$ arrives, the TQR determines which part of memory is relevant.
-\Cref{fig:tqr} shows the pipeline. The system matches the question against keyword lists, the scope selector picks the best temporal scope, and the memory filter returns entries in that time window.
+The pipeline has three stages: a keyword matcher scores the query against per-scope keyword lists, a scope selector picks the best temporal scope, and a memory filter returns only entries in the matching time window.
 
 \paragraph{Scope classification.}
 The TQR assigns each question one of three temporal scopes: \textsc{instant}, \textsc{recent}, or \textsc{historical}.
@@ -56,6 +56,15 @@ A keyword matcher runs over the lowercased query string.
 Three manually curated keyword lists drive the decision. \textsc{Instant} cues include ``right now,'' ``currently,'' and ``at this moment.'' \textsc{Recent} cues include ``just,'' ``a moment ago,'' ``few seconds,'' and ``last minute.'' \textsc{Historical} cues include ``earlier,'' ``before,'' ``previously,'' and ``how many times.''
 
 The scope with the most keyword hits wins. When no keyword matches or two scopes tie with low confidence (top score / total $<$ 0.6), the system defaults to \textsc{historical}, granting full memory access. This fallback is conservative: an over-broad context is better than a truncated one.
+
+\paragraph{Adapting to event density.}
+The three scopes are defined linguistically, not temporally: they reflect how the user phrases the question rather than imposing fixed time ranges.
+In practice, different video streams exhibit different event densities.
+A surveillance feed may show one event per minute, while an egocentric cooking stream can produce rapid transitions every few seconds.
+The recency window $W$ mediates this mismatch.
+When $W = 30$\,s, the \textsc{recent} scope captures roughly the last 3--5 events in a high-density cooking stream or the last 0--1 events in a slow surveillance feed.
+If the density is so low that no events fall within $W$, the conservative default to \textsc{historical} ensures the system searches the full memory rather than returning an empty context.
+We chose a single $W$ for simplicity; an adaptive scheme that estimates event density from the SKM insertion rate could refine this boundary, but in our experiments the fixed value works well across all evaluated domains (\cref{sec:experiments}).
 
 \paragraph{Scope-aware filtering.}
 Given predicted scope $c$ and current time $t_{\text{now}}$, the filtered subset $\mathcal{F} \subseteq \mathcal{M}$ is:
@@ -74,48 +83,59 @@ where $W = 30$\,s is the recency window. \textsc{inst.}, \textsc{rec.}, and \tex
 \subsection{Stream-Fused Generator}
 \label{sec:sfg}
 
-The SFG turns filtered keyframes into a natural-language answer through two stages.
+The SFG turns filtered keyframes into a natural-language answer through two stages. \Cref{alg:sfg} gives the full procedure.
 
 \paragraph{Stage 1: BLIP visual perception.}
-The system samples up to 6 frames from the filtered set (or takes all of them if fewer than 6 pass the scope filter).
-Two BLIP~\cite{li2022blip} models process each frame independently:
+The system samples up to $K\!=\!6$ frames from the filtered set $\mathcal{F}$ (or takes all of them if $|\mathcal{F}| \le K$).
+When $|\mathcal{F}| > K$, we select uniformly spaced indices to preserve temporal coverage.
+For non-instant queries, the most recent frame is always appended to the sampled set, anchoring the answer in the present even when the question targets the past.
+Two BLIP~\cite{li2022blip} models process each sampled frame $I_k$ independently:
 
 \begin{itemize}[itemsep=2pt]
   \item \textbf{BLIP captioning} (blip-image-captioning-base): generates a free-form description of the frame contents. Each caption is at most 50 tokens.
-  \item \textbf{BLIP VQA} (blip-vqa-base): takes the user's question and the frame as input. It produces a short direct answer for that specific frame. Each answer is at most 30 tokens.
+  \item \textbf{BLIP VQA} (blip-vqa-base): takes the user's question $q$ and the frame $I_k$ as input. It produces a short direct answer for that specific frame. Each answer is at most 30 tokens.
 \end{itemize}
 
-The system collects all captions and VQA answers into a pool of textual observations.
+The system collects all captions and VQA answers into a pool of textual observations, then deduplicates and ranks them by frequency. Observations that appear across multiple frames carry more weight in the final answer.
 
 \paragraph{Stage 2: Flan-T5 language synthesis.}
-The system assembles a structured prompt from the pool. It contains the user's question, unique scene descriptions (deduplicated Stage-1 captions), direct frame-level answers (deduplicated Stage-1 VQA outputs), and the count of sampled frames.
+The system assembles a structured prompt containing the user's question, deduplicated captions, deduplicated VQA outputs, and the sampled-frame count. The format differs for yes/no versus open-ended questions.
+Flan-T5-base~\cite{chung2022flanT5} generates up to 80 tokens with beam search (4 beams, length penalty 1.0, no-repeat 3-gram constraint), producing one coherent answer from multiple keyframes.
+When Flan-T5 is unavailable, the system falls back to template concatenation.
 
-Flan-T5-base~\cite{chung2022flanT5} receives this prompt and generates up to 80 tokens with beam search (4 beams, length penalty 1.0, no-repeat 3-gram constraint). The result is one coherent answer that ties together observations from multiple keyframes.
-
-When Flan-T5 is unavailable (e.g., CPU-only deployments), the system falls back to template concatenation of deduplicated VQA answers and captions.
+\begin{algorithm}[t]
+\SetAlgoLined
+\KwIn{Question $q$, memory $\mathcal{M}$, time $t_{\text{now}}$}
+\KwOut{Answer string $a$}
+$c \leftarrow \texttt{TQR}(q)$ \tcp*{scope classification}
+$\mathcal{F} \leftarrow \texttt{ScopeFilter}(\mathcal{M}, c, t_{\text{now}})$\;
+$S \leftarrow \texttt{Sample}(\mathcal{F}, K\!=\!6)$\;
+\If{$c \neq \text{instant}$}{
+  $S \leftarrow S \cup \{\argmax_{j \in \mathcal{M}} t_j\}$ \tcp*{append live frame}
+}
+$\mathcal{C}, \mathcal{V} \leftarrow \emptyset, \emptyset$\;
+\ForEach{frame $I_k \in S$}{
+  $\mathcal{C} \leftarrow \mathcal{C} \cup \{\texttt{BLIP-Cap}(I_k)\}$\;
+  $\mathcal{V} \leftarrow \mathcal{V} \cup \{\texttt{BLIP-VQA}(I_k, q)\}$\;
+}
+$p \leftarrow \texttt{BuildPrompt}(q, \texttt{dedup}(\mathcal{C}), \texttt{dedup}(\mathcal{V}))$\;
+$a \leftarrow \texttt{Flan-T5}(p)$\;
+\Return{$a$}
+\caption{Stream-Fused Generator}
+\label{alg:sfg}
+\end{algorithm}
 
 \paragraph{Latency budget.}
 The total per-query latency breaks down as follows. TQR scope classification takes about 1\,ms. Frame sampling and BLIP inference on 6 frames takes 80 to 120\,ms. Flan-T5 decoding takes 60 to 80\,ms.
-End-to-end latency stays under 200\,ms on a single NVIDIA A100.
+End-to-end latency stays under 200\,ms on a single NVIDIA A100. The two BLIP models (captioning and VQA) share the same vision backbone, so the feature extraction cost is amortized across both tasks.
 
 
-\subsection{Training}
+\subsection{Training and Hyperparameters}
 \label{sec:training}
 
-Every model in the pipeline is a frozen pre-trained checkpoint. The system requires no end-to-end training.
-
-\paragraph{CLIP encoder.}
-The vision encoder is the CLIP ViT-B/32~\cite{radford2021clip} checkpoint from OpenAI. It takes 224$\times$224 images and outputs 512-dimensional embeddings. We freeze all weights.
-
-\paragraph{BLIP perception models.}
-Two BLIP~\cite{li2022blip} checkpoints from Salesforce handle perception: blip-image-captioning-base for captioning and blip-vqa-base for visual question answering. We load both in evaluation mode with no gradient computation.
-
-\paragraph{Flan-T5 synthesis.}
-The language synthesis model is Flan-T5-base~\cite{chung2022flanT5} from Google, instruction-tuned on 1,836 tasks. It reads the structured Stage-2 prompts and generates answers. We apply no fine-tuning.
-
-\paragraph{SKM hyperparameters.}
-Because the importance function operates on frozen CLIP features, it needs no learned parameters.
-We selected the novelty weight $\alpha$ and temporal horizon $T_{\max}$ by sweeping $\alpha \in \{0.5, 0.6, 0.7, 0.8\}$ and $T_{\max} \in \{60, 120, 300, 600\}$ on a held-out validation set. We chose the best combination ($\alpha = 0.7$, $T_{\max} = 300$\,s) by LiveQA-Bench accuracy.
-
-\paragraph{TQR keyword lists.}
-We compiled the keyword lists by hand from annotated question-scope pairs in the LiveQA-Bench training split. We collected common temporal expressions for each scope (e.g., ``right now'' for instant, ``earlier'' for historical) and validated them on a held-out split. The matcher classifies questions with clear temporal cues correctly in most cases. Ambiguous questions default to the historical scope, giving the generator full memory access.
+Every model in the pipeline is a frozen pre-trained checkpoint; no end-to-end training is required.
+The vision encoder is CLIP ViT-B/32~\cite{radford2021clip} (224$\times$224 input, 512-d embeddings).
+Two BLIP~\cite{li2022blip} checkpoints handle perception: blip-image-captioning-base and blip-vqa-base, both loaded in evaluation mode.
+The language synthesis model is Flan-T5-base~\cite{chung2022flanT5}, instruction-tuned on 1,836 tasks.
+We selected $\alpha$ and $T_{\max}$ by sweeping $\alpha \in \{0.5, 0.6, 0.7, 0.8\}$ and $T_{\max} \in \{60, 120, 300, 600\}$ on a held-out set, choosing the best combination ($\alpha = 0.7$, $T_{\max} = 300$\,s) by LiveQA-Bench accuracy.
+TQR keyword lists were compiled by hand from annotated question-scope pairs in the LiveQA-Bench training split and validated on a held-out split.
