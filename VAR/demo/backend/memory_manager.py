@@ -103,9 +103,15 @@ class MemoryManager:
         return False
 
     def get_entries_by_scope(
-        self, scope: str, current_time: float | None = None, window_seconds: float = 30.0
+        self, scope: str, current_time: float | None = None,
+        window_seconds: float = 30.0, min_recent_frames: int = 3,
     ) -> list[MemoryEntry]:
-        """Return memory entries filtered by temporal scope."""
+        """Return memory entries filtered by temporal scope.
+
+        For 'recent': returns frames within the last window_seconds. If fewer
+        than min_recent_frames are found, returns the most recent frames from
+        memory (up to min_recent_frames) so the model always has context.
+        """
         if current_time is None:
             current_time = time.time()
 
@@ -116,7 +122,12 @@ class MemoryManager:
 
         if scope == "recent":
             cutoff = current_time - window_seconds
-            return [e for e in self.entries if e.timestamp >= cutoff]
+            recent = [e for e in self.entries if e.timestamp >= cutoff]
+            if len(recent) >= min_recent_frames:
+                return recent
+            # Fallback: return the N most recent frames by timestamp
+            sorted_by_time = sorted(self.entries, key=lambda e: e.timestamp, reverse=True)
+            return sorted_by_time[:max(min_recent_frames, len(recent))]
 
         return list(self.entries)
 

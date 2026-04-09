@@ -41,7 +41,7 @@ SCOPE_KEYWORDS = {
     ],
 }
 
-MAX_SAMPLE_FRAMES = 6
+MAX_SAMPLE_FRAMES = {"instant": 1, "recent": 6, "historical": 10}
 CAPTION_MODEL = "Salesforce/blip-image-captioning-base"
 VQA_MODEL = "Salesforce/blip-vqa-base"
 LLM_MODEL = "google/flan-t5-base"
@@ -228,12 +228,14 @@ class VLMEngine:
             )
         return self.llm_tokenizer.decode(output[0], skip_special_tokens=True).strip()
 
-    def _sample_frames(self, context_frames: list[dict]) -> list[dict]:
+    def _sample_frames(self, context_frames: list[dict],
+                        scope: str = "historical") -> list[dict]:
+        max_frames = MAX_SAMPLE_FRAMES.get(scope, 6)
         n = len(context_frames)
-        if n <= MAX_SAMPLE_FRAMES:
+        if n <= max_frames:
             return context_frames
-        step = n / MAX_SAMPLE_FRAMES
-        indices = [int(i * step) for i in range(MAX_SAMPLE_FRAMES)]
+        step = n / max_frames
+        indices = [int(i * step) for i in range(max_frames)]
         return [context_frames[i] for i in indices]
 
     # --- Two-stage pipeline ---
@@ -265,9 +267,10 @@ class VLMEngine:
         )
         return any(p in q for p in presence_patterns)
 
-    def _gather_observations(self, query: str, context_frames: list[dict]) -> dict:
+    def _gather_observations(self, query: str, context_frames: list[dict],
+                              scope: str = "historical") -> dict:
         """Stage 1: Run BLIP across sampled frames to gather visual observations."""
-        sampled = self._sample_frames(context_frames)
+        sampled = self._sample_frames(context_frames, scope=scope)
         descriptions = []
         vqa_answers = []
 
@@ -320,14 +323,15 @@ class VLMEngine:
         return ranked
 
     def _build_prompt(self, query: str, obs: dict, scope: str) -> str:
-        """Build a Flan-T5 prompt from the user's question and visual observations."""
+        """Build a scope-aware Flan-T5 prompt from the user's question and visual observations."""
         ranked_captions = self._rank_by_frequency(obs["captions"])
         ranked_answers = self._rank_by_frequency(obs["vqa_answers"])
 
-        caption_str = ". ".join(ranked_captions[:3]) if ranked_captions else "unknown"
-        vqa_str = ", ".join(ranked_answers[:4]) if ranked_answers else "unknown"
+        n_frames = obs.get("n_sampled", 1)
 
         if self._is_yes_no_question(query):
+            caption_str = ". ".join(ranked_captions[:4]) if ranked_captions else "unknown"
+            vqa_str = ", ".join(ranked_answers[:4]) if ranked_answers else "unknown"
             return (
                 f"Question: {query}\n"
                 f"Visual answer: {vqa_str}\n"
@@ -335,13 +339,37 @@ class VLMEngine:
                 f"Answer with yes or no, then describe what is visible:"
             )
 
-        n_frames = obs.get("n_sampled", 1)
+        if scope == "instant":
+            caption_str = ranked_captions[0] if ranked_captions else "unknown"
+            vqa_str = ", ".join(ranked_answers[:3]) if ranked_answers else "unknown"
+            return (
+                f"Based on the current video frame:\n"
+                f"Scene: {caption_str}\n"
+                f"Visual details: {vqa_str}\n"
+                f"Question: {query}\n"
+                f"Describe what is visible right now in 1-2 sentences:"
+            )
+
+        if scope == "recent":
+            caption_str = ". ".join(ranked_captions[:5]) if ranked_captions else "unknown"
+            vqa_str = ", ".join(ranked_answers[:5]) if ranked_answers else "unknown"
+            return (
+                f"Based on {n_frames} recent video frames from the last 30 seconds:\n"
+                f"Observations over time: {caption_str}\n"
+                f"Visual details: {vqa_str}\n"
+                f"Question: {query}\n"
+                f"Describe what happened recently in 1-2 sentences:"
+            )
+
+        # historical
+        caption_str = ". ".join(ranked_captions[:8]) if ranked_captions else "unknown"
+        vqa_str = ", ".join(ranked_answers[:6]) if ranked_answers else "unknown"
         return (
-            f"Based on {n_frames} video frames:\n"
-            f"Scene observations: {caption_str}\n"
+            f"Based on {n_frames} frames spanning the entire video stream:\n"
+            f"Scene observations over time: {caption_str}\n"
             f"Visual details: {vqa_str}\n"
             f"Question: {query}\n"
-            f"Give a detailed answer in 1-2 sentences:"
+            f"Summarize what happened throughout the stream in 1-2 sentences:"
         )
 
     def _direct_answer_from_observations(self, query: str, obs: dict) -> str:
@@ -387,7 +415,7 @@ class VLMEngine:
         if not self.is_ready():
             return "Models are not loaded. Install PyTorch and transformers to enable the full pipeline."
 
-        obs = self._gather_observations(query, context_frames)
+        obs = self._gather_observations(query, context_frames, scope=scope)
 
         if not obs["captions"] and not obs["vqa_answers"]:
             return "Could not extract any visual information from the available frames."
