@@ -1,0 +1,72 @@
+\clearpage
+\setcounter{page}{1}
+\maketitlesupplementary
+
+\section{TQR Keyword Lists}
+\label{sec:suppl_tqr}
+
+\Cref{tab:tqr_keywords} lists the full keyword sets used by the Temporal Query Router. Keywords were compiled from annotated question-scope pairs in the LiveQA-Bench training split and validated on a held-out split.
+
+\begin{table}[h]
+  \caption{\textbf{TQR keyword lists.} Each list is matched against the lowercased query string; the scope with the most hits wins.}
+  \label{tab:tqr_keywords}
+  \centering
+  \small
+  \begin{tabular}{@{}lp{5.8cm}@{}}
+    \toprule
+    Scope & Keywords \\
+    \midrule
+    \textsc{Instant} & right now, currently, at this moment, happening now, see right now \\[3pt]
+    \textsc{Recent} & just, a moment ago, few seconds, recently, did the, was the, just happened, last minute, a minute ago \\[3pt]
+    \textsc{Historical} & earlier, before, previously, at the start, in the beginning, how many times, ever, at any point, throughout, so far \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{LiveQA-Bench Construction Details}
+\label{sec:suppl_liveqa}
+
+LiveQA-Bench streams are constructed by temporally concatenating clips from Ego4D~\cite{grauman2022ego4d} (egocentric daily activities: cooking, navigation, object manipulation) and Kinetics (action recognition: sports, household tasks, outdoor activities) with natural transitions.
+Each stream is 5--30 minutes long and contains 3--8 scene changes.
+Ground-truth answers are generated automatically: for \textsc{instant} questions, BLIP captions of the target frame serve as ground truth; for \textsc{recent} and \textsc{historical} questions, Flan-T5 summarizes the BLIP captions from the relevant time window into a single reference sentence.
+We verify all ground-truth answers manually and discard ambiguous or unanswerable questions.
+
+\paragraph{Scope distribution.}
+The 500 questions divide into 170 \textsc{instant} (34\%), 180 \textsc{recent} (36\%), and 150 \textsc{historical} (30\%).
+This distribution reflects the expected usage pattern: users ask about the present most often, about the recent past frequently, and about the full history occasionally.
+
+\paragraph{Question templates.}
+Instant questions follow templates like \emph{``What is happening right now?''}, \emph{``Is anyone in the scene?''}, and \emph{``What can you see in the current frame?''}.
+Recent questions use \emph{``What just happened?''}, \emph{``What was the person doing recently?''}, and \emph{``What changed in the last few seconds?''}.
+Historical questions use \emph{``How many different scenes have appeared so far?''}, \emph{``Did anything change earlier?''}, and \emph{``What has happened throughout the stream?''}.
+
+\section{Additional Qualitative Examples}
+\label{sec:suppl_qual}
+
+We provide additional predictions to complement the examples in the main paper.
+
+\paragraph{Correct predictions across domains.}
+\begin{itemize}[itemsep=4pt,leftmargin=*]
+  \item \textbf{Cooking stream (instant):} \emph{Q:} ``What is happening right now?'' \emph{A:} ``A person is stirring food in a pan on the stove.'' (scope: \textsc{instant}, 1 frame, 1.2\,s). The single-frame answer is grounded in the BLIP caption and correctly identifies the cooking action.
+
+  \item \textbf{Surveillance stream (historical):} \emph{Q:} ``Did anything change earlier in the video?'' \emph{A:} ``Yes'' (scope: \textsc{historical}, 64 frames, 4.8\,s). The SKM retained a high-novelty frame from a scene transition 8 minutes earlier, enabling the correct yes/no answer.
+
+  \item \textbf{Activity montage (recent):} \emph{Q:} ``What was the person doing recently?'' \emph{A:} ``The person was walking through a park with trees and grass.'' (scope: \textsc{recent}, 4 frames, 3.1\,s). The 30\,s window captured the transition from indoors to outdoors.
+\end{itemize}
+
+\paragraph{Failure cases.}
+\begin{itemize}[itemsep=4pt,leftmargin=*]
+  \item \textbf{Scope misrouting:} \emph{Q:} ``What can you see in the current frame?'' The word ``see'' matches historical cues, routing to \textsc{historical} instead of \textsc{instant}. The answer describes the entire stream rather than the present frame. A learned classifier would handle this correctly.
+
+  \item \textbf{Sparse coverage:} \emph{Q:} ``What just happened?'' asked during a rapid cooking sequence. Only 1 keyframe falls within the 30\,s recent window because the SKM novelty threshold is too strict for fast-paced egocentric video. An adaptive threshold would insert more frames during high-density periods.
+
+  \item \textbf{Generic generation:} \emph{Q:} ``What is happening right now?'' BLIP captions the frame as ``a woman in a blue shirt cutting vegetables on a wooden cutting board'' but Flan-T5-base simplifies to ``cooking.'' The correct details are present in the perception stage but lost during synthesis.
+\end{itemize}
+
+\section{Reproducibility}
+\label{sec:suppl_repro}
+
+All evaluation code, the LiveQA-Bench dataset (canonical benchmark JSON with fixed ground-truth answers), and a Google Colab notebook for GPU evaluation are included in the supplementary material and will be released publicly.
+Random seeds are fixed (seed=42) throughout the evaluation pipeline to ensure deterministic results.
+All models are frozen pre-trained checkpoints loaded from HuggingFace: CLIP ViT-B/32 (\texttt{openai/clip-vit-base-patch32}), BLIP captioning (\texttt{Salesforce/blip-image-captioning-base}), BLIP VQA (\texttt{Salesforce/blip-vqa-base}), and Flan-T5-base (\texttt{google/flan-t5-base}).
+No training or fine-tuning is required.

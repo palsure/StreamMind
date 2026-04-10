@@ -1,0 +1,32 @@
+{
+  "clip_encode": {
+    "mean_ms": 20.6,
+    "std_ms": 4.3,
+    "min_ms": 17.3
+  },
+  "skm_update": {
+    "mean_ms": 0.2,
+    "std_ms": 0.0,
+    "min_ms": 0.2
+  },
+  "tqr_classify": {
+    "mean_ms": 0.0,
+    "std_ms": 0.0,
+    "min_ms": 0.0
+  },
+  "blip_caption": {
+    "mean_ms": 234.2,
+    "std_ms": 34.4,
+    "min_ms": 203.6
+  },
+  "flan_t5": {
+    "mean_ms": 1057.2,
+    "std_ms": 120.9,
+    "min_ms": 982.3
+  },
+  "total_query": {
+    "mean_ms": 4519.1,
+    "std_ms": 255.5,
+    "min_ms": 4295.0
+  }
+}
